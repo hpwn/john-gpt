@@ -2,22 +2,27 @@ import os
 import asyncio
 from twitchio.ext import commands
 from pydub import AudioSegment
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import requests
 import subprocess
 import time
 
-# Constants for your setup
 TTS_MODEL_URL = (
     "http://localhost:8000/generate_audio"  # Placeholder URL for your TTS model
 )
 CHATBOT_MODEL_URL = (
     "http://localhost:8000/generate_response"  # Placeholder URL for your chatbot model
 )
+
 AUDIO_FOLDER = "path/to/your/audio_folder"  # Folder where audio files will be saved
 TWITCH_TOKEN = "ctvbx62ohsd2epfp80v7syu7emekz3"
 TWITCH_REFRESH_TOKEN = "2vx9w0znsskof17u8v1yi7c2peb15aa50rl0gsmt569olzxrcu"
 TWITCH_CHANNEL = "hp_az"
 TWITCH_NICK = "hp_az"
+
+model_directory = "/model"
+tokenizer = AutoTokenizer.from_pretrained(model_directory)
+model = AutoModelForCausalLM.from_pretrained(model_directory)
 
 
 class Bot(commands.Bot):
@@ -35,7 +40,8 @@ class Bot(commands.Bot):
             return
 
         # Process message
-        # response_text = get_chatbot_response(message.content)
+        response_text = get_chatbot_response(message.content)
+        print(response_text)
         # audio_file_path = generate_tts_audio(response_text)
 
         # Do something with the audio file, e.g., move it to the monitored folder
@@ -43,10 +49,17 @@ class Bot(commands.Bot):
 
 
 def get_chatbot_response(message):
-    # This function sends the chat message to the chatbot model and gets a response
-    # Replace with actual code to invoke your local chatbot model
-    response = requests.post(CHATBOT_MODEL_URL, json={"message": message})
-    return response.text
+    # Tokenize the message input
+    inputs = tokenizer(message, return_tensors="pt").input_ids
+
+    # Generate a response from the model
+    outputs = model.generate(
+        inputs, max_new_tokens=50
+    )  # Adjust max_new_tokens as needed
+
+    # Decode the model output to a readable string
+    response_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response_text
 
 
 def generate_tts_audio(text):
